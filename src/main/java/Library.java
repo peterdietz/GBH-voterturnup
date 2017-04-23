@@ -33,6 +33,7 @@ public class Library {
             File csvWard = new File("/Users/peterdietz/Projects/personal/givebackhack/voter-turnout/ward14-normal2.csv");
             File csvEviction = new File("/Users/peterdietz/Projects/personal/givebackhack/voter-turnout/cle-eviction-2017.csv");
             File csvForeclosure = new File("/Users/peterdietz/Projects/personal/givebackhack/voter-turnout/foreclosure.csv");
+            File csvLandbank = new File("/Users/peterdietz/Projects/personal/givebackhack/voter-turnout/landbank.csv");
 
             String wardWrite = "/Users/peterdietz/Projects/personal/givebackhack/voter-turnout/ward14-normal2-edit.csv";
 
@@ -45,11 +46,12 @@ public class Library {
 
             Integer matchesEvict = 0;
             Integer matchesForeclose = 0;
-            Map<String, String> matchedPeople = new HashMap<String, String>();
+            Integer matchesLandbank = 0;
 
             Integer row = 0;
             for (CSVRecord wardRecord : parserWard) {
                 String wardName = wardRecord.get(5).trim().replaceAll(" +", " ").replaceAll("[^a-zA-Z ]", "");
+                String wardAddress = wardRecord.get(14).trim().replaceAll(" +", " ").replaceAll("[^a-zA-Z0-9 ]", "");
 
                 CSVParser parserEviction = CSVParser.parse(csvEviction, Charset.defaultCharset(), CSVFormat.DEFAULT);
                 Boolean evicted = false;
@@ -59,7 +61,6 @@ public class Library {
                     if(distance < 2) {
                         evicted = true;
 
-                        matchedPeople.put(wardName, evictionName);
                         if(distance >= 0 ) {
                             System.out.println("WARD:" + wardName + " ___ " + " EVICT: " + evictionName + " DIST: " + distance);
                         }
@@ -75,11 +76,30 @@ public class Library {
                     Integer distance = StringUtils.getLevenshteinDistance(wardName, foreclosureName);
                     if(distance < 2) {
                         foreclosed = true;
-                        matchedPeople.put(wardName, foreclosureName);
+
                         if(distance >= 0 ) {
                             System.out.println("WARD:" + wardName + " ___ " + " FORECLOSURE: " + foreclosureName + " DIST: " + distance);
                         }
                         matchesForeclose++;
+                        break;
+                    }
+                }
+
+                CSVParser parserLandbank = CSVParser.parse(csvLandbank, Charset.defaultCharset(), CSVFormat.DEFAULT);
+                Boolean landbanked = false;
+                for(CSVRecord landbankRecord : parserLandbank) {
+                    //4688 Lee Rd (side By Side)
+                    String landbankAddress = landbankRecord.get(1).trim().replaceAll(" +", " ");
+                    landbankAddress = landbankAddress.split("\\(")[0];
+                    landbankAddress = landbankAddress.replaceAll("[^a-zA-Z0-9 ]", "").toUpperCase();
+
+                    if(landbankAddress.equals(wardAddress)) {
+                        landbanked = true;
+
+                        if(landbanked) {
+                            System.out.println("WARDNAME:" + wardName + " WARDADDR: " + wardAddress + " Landbank: " + landbankAddress);
+                        }
+                        matchesLandbank++;
                         break;
                     }
                 }
@@ -92,9 +112,11 @@ public class Library {
                 if(row == 0) {
                     wardData.add("isEvicted");
                     wardData.add("isForeclosed");
+                    wardData.add("isLandbanked");
                 } else {
                     wardData.add(evicted.toString());
                     wardData.add(foreclosed.toString());
+                    wardData.add(landbanked.toString());
                 }
                 csvFilePrinter.printRecord(wardData);
 
@@ -105,7 +127,8 @@ public class Library {
             fileWriter.close();
             csvFilePrinter.close();
 
-            System.out.println("MatchesEvict: " + matchesEvict + " MatchesForeclose:"  + matchesForeclose);
+            Integer matches = matchesEvict + matchesForeclose + matchesLandbank;
+            System.out.println("BOE Rows: " + row + " MatchesEvict: " + matchesEvict + " MatchesForeclose:"  + matchesForeclose + " MatchesLandbank:" + matchesLandbank + " Total Matches:" + matches + " Matches Percent: " + (matches/row));
 
         } catch (IOException e) {
             System.err.println(e.getMessage());
