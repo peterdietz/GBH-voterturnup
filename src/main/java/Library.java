@@ -34,6 +34,7 @@ public class Library {
             File csvEviction = new File("/Users/peterdietz/Projects/personal/givebackhack/voter-turnout/cle-eviction-2017.csv");
             File csvForeclosure = new File("/Users/peterdietz/Projects/personal/givebackhack/voter-turnout/foreclosure.csv");
             File csvLandbank = new File("/Users/peterdietz/Projects/personal/givebackhack/voter-turnout/landbank.csv");
+            File csvPropertySales = new File("/Users/peterdietz/Projects/personal/givebackhack/voter-turnout/property-sales.csv");
 
             String wardWrite = "/Users/peterdietz/Projects/personal/givebackhack/voter-turnout/ward14-normal2-edit.csv";
 
@@ -47,11 +48,13 @@ public class Library {
             Integer matchesEvict = 0;
             Integer matchesForeclose = 0;
             Integer matchesLandbank = 0;
+            Integer matchesPropertySales = 0;
 
             Integer row = 0;
             for (CSVRecord wardRecord : parserWard) {
                 String wardName = wardRecord.get(5).trim().replaceAll(" +", " ").replaceAll("[^a-zA-Z ]", "");
                 String wardAddress = wardRecord.get(14).trim().replaceAll(" +", " ").replaceAll("[^a-zA-Z0-9 ]", "");
+
 
                 CSVParser parserEviction = CSVParser.parse(csvEviction, Charset.defaultCharset(), CSVFormat.DEFAULT);
                 Boolean evicted = false;
@@ -104,6 +107,53 @@ public class Library {
                     }
                 }
 
+                CSVParser parserpropertySales = CSVParser.parse(csvPropertySales, Charset.defaultCharset(), CSVFormat.DEFAULT);
+                Boolean propertySalesed = false;
+                for(CSVRecord propertySalesRecord : parserpropertySales) {
+                    // #66 Address
+                    // 9500 Lorain Ave
+                    String propertySalesAddress = propertySalesRecord.get(66).trim().replaceAll(" +", " ");
+                    //propertySalesAddress = propertySalesAddress.split("\\(")[0];
+                    //propertySalesAddress = propertySalesAddress.replaceAll("[^a-zA-Z0-9 ]", "").toUpperCase();
+
+
+                    if(propertySalesAddress.equals(wardAddress)) {
+                        //Wardnames are FIRST M LAST
+
+
+                        //new owner
+                        //String propertySalesGrantee = propertySalesRecord.get(66).trim().replaceAll(" +", " ");
+
+                        //seller LGRANTOR1
+                        // JUPINA ELIZABETH B
+                        // GANESH, RYAN
+                        // ARROYO, JULIO L ETALL
+                        // Al Sherbini Steve
+                        String propertySalesGrantor = propertySalesRecord.get(5).trim().replaceAll(" +", " ");
+                        propertySalesGrantor = propertySalesGrantor.replaceAll("ETALL", "").replaceAll("ETAL", "").replaceAll("ET AL", "");
+
+                        if(propertySalesGrantor.contains(",")) {
+                            String[] names = propertySalesGrantor.split(",");
+                            if(names.length > 1) {
+                                propertySalesGrantor = names[1] + " " + names[0];
+                            }
+                        } else {
+                            //put last name first
+                            String[] names = propertySalesGrantor.split(" ");
+                            if(names.length > 1) {
+                                propertySalesGrantor = StringUtils.join(names, " ", 1, names.length - 1) + " " + names[0];
+                            }
+                        }
+
+                        if(StringUtils.getLevenshteinDistance(wardName, propertySalesGrantor) < 2) {
+                            System.out.println("WARDNAME:" + wardName + " WARDADDR: " + wardAddress + " propertySales: " + propertySalesAddress + " grantor:" + propertySalesGrantor);
+                            propertySalesed = true;
+                            matchesPropertySales++;
+                            break;
+                        }
+                    }
+                }
+
                 List<String> wardData = new ArrayList<String>();
                 for(String element : wardRecord) {
                     wardData.add(element);
@@ -113,10 +163,12 @@ public class Library {
                     wardData.add("isEvicted");
                     wardData.add("isForeclosed");
                     wardData.add("isLandbanked");
+                    wardData.add("isPropertySold");
                 } else {
                     wardData.add(evicted.toString());
                     wardData.add(foreclosed.toString());
                     wardData.add(landbanked.toString());
+                    wardData.add(propertySalesed.toString());
                 }
                 csvFilePrinter.printRecord(wardData);
 
@@ -128,7 +180,7 @@ public class Library {
             csvFilePrinter.close();
 
             Integer matches = matchesEvict + matchesForeclose + matchesLandbank;
-            System.out.println("BOE Rows: " + row + " MatchesEvict: " + matchesEvict + " MatchesForeclose:"  + matchesForeclose + " MatchesLandbank:" + matchesLandbank + " Total Matches:" + matches + " Matches Percent: " + (matches/row));
+            System.out.println("BOE Rows: " + row + " MatchesEvict: " + matchesEvict + " MatchesForeclose:"  + matchesForeclose + " MatchesLandbank:" + matchesLandbank + " MatchesPropertySales: " + matchesPropertySales + " Total Matches:" + matches + " Matches Percent: " + (matches/row));
 
         } catch (IOException e) {
             System.err.println(e.getMessage());
